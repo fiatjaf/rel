@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/Songmu/prompter"
 	"github.com/fiatjaf/cuid"
@@ -22,14 +21,19 @@ func main() {
 	app.Name = "rels"
 	app.Description = "manage entities and relationships between them in flat files."
 	app.Version = "0.0.1"
+	app.EnableBashCompletion = true
 
-	s := &state{}
+	s := &state{
+		nodesbyid: make(map[string]*node),
+		relsbykey: make(map[string]*rel),
+	}
 
 	app.Before = func(c *cli.Context) error {
 		here, _ := os.Getwd()
 
 		s.here = here
 
+		// read all nodes
 		filepath.Walk(s.here, func(path string, f os.FileInfo, err error) error {
 			if f.Name()[0] == '.' {
 				if f.IsDir() {
@@ -58,11 +62,68 @@ func main() {
 				return nil
 			}
 
-			if n.id == "" {
-				n.id = strings.Split(filepath.Base(path), ".")[0]
+			s.nodesbyid[n.id] = &n
+			return nil
+		})
+
+		// read all relationships
+		filepath.Walk(s.here, func(path string, f os.FileInfo, err error) error {
+			if f.Name()[0] == '.' {
+				if f.IsDir() {
+					return filepath.SkipDir
+				} else {
+					return nil
+				}
+			}
+			if filepath.Ext(path) != ".yaml" && filepath.Ext(path) != ".yml" {
+				return nil
 			}
 
-			s.nodes = append(s.nodes, &n)
+			contents, err := ioutil.ReadFile(path)
+			if err != nil {
+				log.Print("couldn't read file: ", path, ". ", err)
+				return nil
+			}
+
+			var raw map[string]interface{}
+			if err := yaml.Unmarshal(contents, &raw); err != nil {
+				return err
+			}
+
+			var this string
+			if id, ok := raw["id"].(string); ok {
+				this = id
+			}
+
+			for reltype, spec := range map[string]int{
+				"outgoing": 1,
+				"neutral":  0,
+				"incoming": -1,
+			} {
+				if relationships, ok := raw[reltype].(map[interface{}]interface{}); ok {
+					for kind, ids := range relationships {
+						for _, id := range ids.([]interface{}) {
+							r := rel{
+								kind:     kind.(string),
+								directed: spec != 0,
+							}
+
+							if spec > 0 {
+								r.from = s.nodesbyid[this]
+								r.to = s.nodesbyid[id.(string)]
+							} else {
+								r.to = s.nodesbyid[this]
+								r.from = s.nodesbyid[id.(string)]
+							}
+
+							if _, exists := s.relsbykey[r.key()]; !exists {
+								s.relsbykey[r.key()] = &r
+							}
+						}
+					}
+				}
+			}
+
 			return nil
 		})
 
@@ -74,8 +135,8 @@ func main() {
 			Name:  "nodes",
 			Usage: "list all nodes",
 			Action: func(c *cli.Context) error {
-				for _, node := range s.nodes {
-					fmt.Println(node.name)
+				for _, n := range s.nodesbyid {
+					fmt.Println(n.repr())
 				}
 				return nil
 			},
@@ -84,7 +145,9 @@ func main() {
 			Name:  "rels",
 			Usage: "list all relationships",
 			Action: func(c *cli.Context) error {
-				fmt.Println("completed task: ", c.Args().First())
+				for _, r := range s.relsbykey {
+					fmt.Println(r.repr() + "\t(" + r.key() + ")")
+				}
 				return nil
 			},
 		},
@@ -94,12 +157,12 @@ func main() {
 			Action: func(c *cli.Context) error {
 				name := c.Args().First()
 				if name == "" {
-					name = prompter.Prompt("Node name", "")
+					name = prompter.Prompt("name", "")
 				}
 
 				id := cuid.Slug()
 
-				for _, n := range s.nodes {
+				for _, n := range s.nodesbyid {
 					if n.name == name {
 						dup := prompter.YN(
 							"There's already a node named '"+name+"', create a duplicate?",
@@ -126,115 +189,45 @@ func main() {
 		{
 			Name:  "link",
 			Usage: "create a relationship between two nodes",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "neutral",
+					Usage: "Use this if this relationship is not directed.",
+				},
+			},
 			Action: func(c *cli.Context) error {
-				fmt.Println("completed task: ", c.Args().First())
+				args := c.Args()
+				arglen := len(args)
+				if arglen != 1 {
+					return fmt.Errorf("argument should be <kind>")
+				}
+
+				r := rel{
+					directed: !c.Bool("neutral"),
+					kind:     args[0],
+				}
+
+				if n, err := autocompleteNodes(s, "from:"); err != nil {
+					return err
+				} else {
+					r.from = n
+				}
+
+				if n, err := autocompleteNodes(s, "to: "); err != nil {
+					return err
+				} else {
+					r.to = n
+				}
+
+				s.relsbykey[r.key()] = &r
+
+				r.from.write()
+				r.to.write()
+
 				return nil
 			},
 		},
 	}
 
 	app.Run(os.Args)
-}
-
-type state struct {
-	here   string
-	nodes  []*node
-	rels   []*rel
-	schema schema
-}
-
-type node struct {
-	path  string
-	state *state
-
-	id    string
-	name  string
-	attrs map[string]interface{}
-}
-
-func (n node) MarshalYAML() (interface{}, error) {
-	raw := map[string]interface{}{
-		"name": n.name,
-		"id":   n.id,
-	}
-
-	for k, v := range n.attrs {
-		raw[k] = v
-	}
-
-	outgoing := map[string][]string{}
-	incoming := map[string][]string{}
-	neutral := map[string][]string{}
-
-	for _, r := range n.state.rels {
-		var other string
-		var out bool
-		if r.from.id == n.id {
-			other = r.to.id
-			out = true
-		} else {
-			other = r.from.id
-			out = false
-		}
-
-		if r.directed {
-			if out {
-				outgoing[r.kind] = append(outgoing[r.kind], other)
-			} else {
-				incoming[r.kind] = append(incoming[r.kind], other)
-			}
-		} else {
-			neutral[r.kind] = append(neutral[r.kind], other)
-		}
-	}
-
-	if len(outgoing) > 0 {
-		raw["outgoing"] = outgoing
-	}
-	if len(incoming) > 0 {
-		raw["incoming"] = incoming
-	}
-	if len(neutral) > 0 {
-		raw["neutral"] = neutral
-	}
-
-	return raw, nil
-}
-
-func (n *node) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var raw map[string]interface{}
-	if err := unmarshal(&raw); err != nil {
-		return err
-	}
-
-	n.name = raw["name"].(string)
-	n.id = raw["id"].(string)
-	n.attrs = make(map[string]interface{})
-
-	for k, v := range raw {
-		if k != "name" && k != "id" && k != "outgoing" && k != "incoming" && k != "neutral" {
-			n.attrs[k] = v
-		}
-	}
-
-	return nil
-}
-
-func (n node) write() error {
-	contents, err := yaml.Marshal(n)
-	if err != nil {
-		return err
-	}
-
-	return ioutil.WriteFile(n.path, contents, 0777)
-}
-
-type rel struct {
-	kind     string
-	directed bool
-	from     *node
-	to       *node
-}
-
-type schema struct {
 }
