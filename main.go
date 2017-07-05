@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Songmu/prompter"
 	"github.com/fiatjaf/cuid"
-	"github.com/segmentio/go-prompt"
 
 	"gopkg.in/urfave/cli.v1"
 	"gopkg.in/yaml.v2"
@@ -94,15 +94,17 @@ func main() {
 			Action: func(c *cli.Context) error {
 				name := c.Args().First()
 				if name == "" {
-					name = prompt.StringRequired("Node name")
+					name = prompter.Prompt("Node name", "")
 				}
 
 				id := cuid.Slug()
 
 				for _, n := range s.nodes {
 					if n.name == name {
-						dup := prompt.Confirm(
-							"There's already a node named '%s', create a duplicate?", name)
+						dup := prompter.YN(
+							"There's already a node named '"+name+"', create a duplicate?",
+							false,
+						)
 						if dup {
 							break
 						} else {
