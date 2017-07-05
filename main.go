@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"log"
 	"os"
@@ -24,8 +25,8 @@ func main() {
 	app.EnableBashCompletion = true
 
 	s := &state{
-		nodesbyid: make(map[string]*node),
-		relsbykey: make(map[string]*rel),
+		Nodes: make(map[string]*Node),
+		Rels:  make(map[string]*Rel),
 	}
 
 	app.Before = func(c *cli.Context) error {
@@ -52,7 +53,7 @@ func main() {
 				return nil
 			}
 
-			n := node{
+			n := Node{
 				path:  path,
 				state: s,
 			}
@@ -62,7 +63,7 @@ func main() {
 				return nil
 			}
 
-			s.nodesbyid[n.id] = &n
+			s.Nodes[n.Id] = &n
 			return nil
 		})
 
@@ -103,21 +104,21 @@ func main() {
 				if relationships, ok := raw[reltype].(map[interface{}]interface{}); ok {
 					for kind, ids := range relationships {
 						for _, id := range ids.([]interface{}) {
-							r := rel{
-								kind:     kind.(string),
-								directed: spec != 0,
+							r := Rel{
+								Kind:     kind.(string),
+								Directed: spec != 0,
 							}
 
 							if spec > 0 {
-								r.from = s.nodesbyid[this]
-								r.to = s.nodesbyid[id.(string)]
+								r.From = s.Nodes[this]
+								r.To = s.Nodes[id.(string)]
 							} else {
-								r.to = s.nodesbyid[this]
-								r.from = s.nodesbyid[id.(string)]
+								r.To = s.Nodes[this]
+								r.From = s.Nodes[id.(string)]
 							}
 
-							if _, exists := s.relsbykey[r.key()]; !exists {
-								s.relsbykey[r.key()] = &r
+							if _, exists := s.Rels[r.key()]; !exists {
+								s.Rels[r.key()] = &r
 							}
 						}
 					}
@@ -135,7 +136,7 @@ func main() {
 			Name:  "nodes",
 			Usage: "list all nodes",
 			Action: func(c *cli.Context) error {
-				for _, n := range s.nodesbyid {
+				for _, n := range s.Nodes {
 					fmt.Println(n.repr())
 				}
 				return nil
@@ -145,7 +146,7 @@ func main() {
 			Name:  "rels",
 			Usage: "list all relationships",
 			Action: func(c *cli.Context) error {
-				for _, r := range s.relsbykey {
+				for _, r := range s.Rels {
 					fmt.Println(r.repr() + "\t(" + r.key() + ")")
 				}
 				return nil
@@ -162,8 +163,8 @@ func main() {
 
 				id := cuid.Slug()
 
-				for _, n := range s.nodesbyid {
-					if n.name == name {
+				for _, n := range s.Nodes {
+					if n.Name == name {
 						dup := prompter.YN(
 							"There's already a node named '"+name+"', create a duplicate?",
 							false,
@@ -176,12 +177,12 @@ func main() {
 					}
 				}
 
-				n := node{
+				n := Node{
 					path:  path.Join(s.here, id+".yaml"),
 					state: s,
 
-					id:   id,
-					name: name,
+					Id:   id,
+					Name: name,
 				}
 				return n.write()
 			},
@@ -202,27 +203,36 @@ func main() {
 					return fmt.Errorf("argument should be <kind>")
 				}
 
-				r := rel{
-					directed: !c.Bool("neutral"),
-					kind:     args[0],
+				r := Rel{
+					Directed: !c.Bool("neutral"),
+					Kind:     args[0],
 				}
 
 				if n, err := autocompleteNodes(s, "from:"); err != nil {
 					return err
 				} else {
-					r.from = n
+					r.From = n
 				}
 
 				if n, err := autocompleteNodes(s, "to: "); err != nil {
 					return err
 				} else {
-					r.to = n
+					r.To = n
 				}
 
-				s.relsbykey[r.key()] = &r
+				s.Rels[r.key()] = &r
 
-				r.from.write()
-				r.to.write()
+				r.From.write()
+				r.To.write()
+
+				return nil
+			},
+		},
+		{
+			Name:  "dot",
+			Usage: "generate a dot string of the graph",
+			Action: func(c *cli.Context) error {
+				dot.Execute(os.Stdout, s)
 
 				return nil
 			},
@@ -231,3 +241,16 @@ func main() {
 
 	app.Run(os.Args)
 }
+
+var dot = template.Must(template.New("dot").Parse(`
+digraph main {
+  {{ range .Nodes }}
+  n{{ .Id }} [label="{{ .Name }}"]; {{ end }}
+
+  {{ range .Rels }}
+  n{{ .From.Id }}->n{{ .To.Id }} [
+    label="{{ .Kind }}",
+    dir={{ if .Directed }}forward{{ else }}none{{ end }}
+  ]; {{ end }}
+}
+`))

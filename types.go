@@ -7,28 +7,28 @@ import (
 )
 
 type state struct {
-	here      string
-	nodesbyid map[string]*node
-	relsbykey map[string]*rel
-	schema    schema
+	here   string
+	Nodes  map[string]*Node
+	Rels   map[string]*Rel
+	schema schema
 }
 
-type node struct {
+type Node struct {
 	path  string
 	state *state
 
-	id    string
-	name  string
-	attrs map[string]interface{}
+	Id    string
+	Name  string
+	Attrs map[string]interface{}
 }
 
-func (n node) MarshalYAML() (interface{}, error) {
+func (n Node) MarshalYAML() (interface{}, error) {
 	raw := map[string]interface{}{
-		"name": n.name,
-		"id":   n.id,
+		"name": n.Name,
+		"id":   n.Id,
 	}
 
-	for k, v := range n.attrs {
+	for k, v := range n.Attrs {
 		raw[k] = v
 	}
 
@@ -36,25 +36,25 @@ func (n node) MarshalYAML() (interface{}, error) {
 	incoming := map[string][]string{}
 	neutral := map[string][]string{}
 
-	for _, r := range n.state.relsbykey {
+	for _, r := range n.state.Rels {
 		var other string
 		var out bool
-		if r.from.id == n.id {
-			other = r.to.id
+		if r.From.Id == n.Id {
+			other = r.To.Id
 			out = true
 		} else {
-			other = r.from.id
+			other = r.From.Id
 			out = false
 		}
 
-		if r.directed {
+		if r.Directed {
 			if out {
-				outgoing[r.kind] = append(outgoing[r.kind], other)
+				outgoing[r.Kind] = append(outgoing[r.Kind], other)
 			} else {
-				incoming[r.kind] = append(incoming[r.kind], other)
+				incoming[r.Kind] = append(incoming[r.Kind], other)
 			}
 		} else {
-			neutral[r.kind] = append(neutral[r.kind], other)
+			neutral[r.Kind] = append(neutral[r.Kind], other)
 		}
 	}
 
@@ -71,37 +71,37 @@ func (n node) MarshalYAML() (interface{}, error) {
 	return raw, nil
 }
 
-func (n *node) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (n *Node) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var raw map[string]interface{}
 	if err := unmarshal(&raw); err != nil {
 		return err
 	}
 
 	if name, ok := raw["name"].(string); ok {
-		n.name = name
+		n.Name = name
 	}
 	if id, ok := raw["id"].(string); ok {
-		n.id = id
+		n.Id = id
 	}
-	if n.name == "" || n.id == "" {
+	if n.Name == "" || n.Id == "" {
 	}
 
-	n.attrs = make(map[string]interface{})
+	n.Attrs = make(map[string]interface{})
 
 	for k, v := range raw {
 		if k != "name" && k != "id" && k != "outgoing" && k != "incoming" && k != "neutral" {
-			n.attrs[k] = v
+			n.Attrs[k] = v
 		}
 	}
 
 	return nil
 }
 
-func (n node) repr() string {
-	return n.name + " (" + n.id + ")"
+func (n Node) repr() string {
+	return n.Name + " (" + n.Id + ")"
 }
 
-func (n node) write() error {
+func (n Node) write() error {
 	contents, err := yaml.Marshal(n)
 	if err != nil {
 		return err
@@ -110,36 +110,36 @@ func (n node) write() error {
 	return ioutil.WriteFile(n.path, contents, 0777)
 }
 
-type rel struct {
-	kind     string
-	directed bool
-	from     *node
-	to       *node
+type Rel struct {
+	Kind     string
+	Directed bool
+	From     *Node
+	To       *Node
 }
 
-func (r rel) key() string {
-	if r.directed {
-		return r.from.id + "-" + r.kind + ">" + r.to.id
+func (r Rel) key() string {
+	if r.Directed {
+		return r.From.Id + "-" + r.Kind + ">" + r.To.Id
 	} else {
 		// alphabetic
-		if r.from.id < r.to.id {
-			return r.from.id + "-" + r.kind + "-" + r.to.id
+		if r.From.Id < r.To.Id {
+			return r.From.Id + "-" + r.Kind + "-" + r.To.Id
 		} else {
-			return r.to.id + "-" + r.kind + "-" + r.from.id
+			return r.To.Id + "-" + r.Kind + "-" + r.From.Id
 		}
 
 	}
 }
 
-func (r rel) repr() string {
-	if r.directed {
-		return "[" + r.from.name + "] ={" + r.kind + "}=> [" + r.to.name + "]"
+func (r Rel) repr() string {
+	if r.Directed {
+		return "[" + r.From.Name + "] ={" + r.Kind + "}=> [" + r.To.Name + "]"
 	} else {
 		// alphabetic
-		if r.from.name < r.to.name {
-			return "[" + r.from.name + "] ={" + r.kind + "}= [" + r.to.name + "]"
+		if r.From.Name < r.To.Name {
+			return "[" + r.From.Name + "] ={" + r.Kind + "}= [" + r.To.Name + "]"
 		} else {
-			return "[" + r.to.name + "] ={" + r.kind + "}= [" + r.from.name + "]"
+			return "[" + r.To.Name + "] ={" + r.Kind + "}= [" + r.From.Name + "]"
 		}
 
 	}

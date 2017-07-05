@@ -9,7 +9,7 @@ import (
 func nodeAutocompleter(s *state) *readline.PrefixCompleter {
 	pc := readline.PrefixCompleter{}
 
-	for _, n := range s.nodesbyid {
+	for _, n := range s.Nodes {
 		pc.Children = append(
 			pc.Children,
 			readline.PcItem(n.repr()),
@@ -19,7 +19,7 @@ func nodeAutocompleter(s *state) *readline.PrefixCompleter {
 	return &pc
 }
 
-func autocompleteNodes(s *state, prompt string) (*node, error) {
+func autocompleteNodes(s *state, prompt string) (*Node, error) {
 	completer := nodeAutocompleter(s)
 
 	l, err := readline.NewEx(&readline.Config{
@@ -47,7 +47,7 @@ func autocompleteNodes(s *state, prompt string) (*node, error) {
 		}
 		id := strings.TrimRight(parts[1], ")")
 
-		if n, found := s.nodesbyid[id]; found {
+		if n, found := s.Nodes[id]; found {
 			return n, nil
 		}
 	}
