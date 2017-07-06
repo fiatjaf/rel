@@ -230,6 +230,20 @@ func main() {
 			},
 		},
 		{
+			Name:  "unlink",
+			Usage: "remove a link",
+			Action: func(c *cli.Context) error {
+				if r, err := autocompleteRels(s, "link: "); err != nil {
+					return err
+				} else {
+					delete(s.Rels, r.key())
+					r.From.write()
+					r.To.write()
+					return nil
+				}
+			},
+		},
+		{
 			Name:  "edit",
 			Usage: "open a file for edit by node name.",
 			Action: func(c *cli.Context) error {

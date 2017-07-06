@@ -3,7 +3,8 @@ package main
 import (
 	"io/ioutil"
 
-	yaml "gopkg.in/yaml.v2"
+	"github.com/fiatjaf/hashbow"
+	"gopkg.in/yaml.v2"
 )
 
 type state struct {
@@ -122,13 +123,13 @@ type Rel struct {
 
 func (r Rel) key() string {
 	if r.Directed {
-		return r.From.Id + "-" + r.Kind + ">" + r.To.Id
+		return hashbow.Hashbow(r.From.Id + "-" + r.Kind + ">" + r.To.Id)[1:]
 	} else {
 		// alphabetic
 		if r.From.Id < r.To.Id {
-			return r.From.Id + "-" + r.Kind + "-" + r.To.Id
+			return hashbow.Hashbow(r.From.Id + "-" + r.Kind + "-" + r.To.Id)[1:]
 		} else {
-			return r.To.Id + "-" + r.Kind + "-" + r.From.Id
+			return hashbow.Hashbow(r.To.Id + "-" + r.Kind + "-" + r.From.Id)[1:]
 		}
 
 	}
