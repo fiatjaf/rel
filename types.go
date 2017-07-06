@@ -1,12 +1,13 @@
 package main
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"io/ioutil"
 	"path"
 
 	"github.com/Songmu/prompter"
 	"github.com/fiatjaf/cuid"
-	"github.com/fiatjaf/hashbow"
 	"gopkg.in/yaml.v2"
 )
 
@@ -152,17 +153,21 @@ type Rel struct {
 }
 
 func (r Rel) key() string {
+	var prekey string
 	if r.Directed {
-		return hashbow.Hashbow(r.From.Id + "-" + r.Kind + ">" + r.To.Id)[1:]
+		prekey = r.From.Id + "-" + r.Kind + ">" + r.To.Id
 	} else {
 		// alphabetic
 		if r.From.Id < r.To.Id {
-			return hashbow.Hashbow(r.From.Id + "-" + r.Kind + "-" + r.To.Id)[1:]
+			prekey = r.From.Id + "-" + r.Kind + "-" + r.To.Id
 		} else {
-			return hashbow.Hashbow(r.To.Id + "-" + r.Kind + "-" + r.From.Id)[1:]
+			prekey = r.To.Id + "-" + r.Kind + "-" + r.From.Id
 		}
-
 	}
+
+	hasher := md5.New()
+	hasher.Write([]byte(prekey))
+	return hex.EncodeToString(hasher.Sum(nil))[:5]
 }
 
 func (r Rel) repr() string {
