@@ -4,19 +4,34 @@ import (
 	"strings"
 
 	"github.com/chzyer/readline"
+	"github.com/renstrom/fuzzysearch/fuzzy"
 )
 
-func nodeAutocompleter(s *state) *readline.PrefixCompleter {
-	pc := readline.PrefixCompleter{}
-
+func nodeAutocompleter(s *state) readline.AutoCompleter {
+	haystack := make([]string, len(s.Nodes))
+	i := 0
 	for _, n := range s.Nodes {
-		pc.Children = append(
-			pc.Children,
-			readline.PcItem(n.repr()),
-		)
+		haystack[i] = n.repr()
+		i++
 	}
 
-	return &pc
+	return FuzzyCompleter{haystack}
+}
+
+type FuzzyCompleter struct {
+	haystack []string
+}
+
+func (fz FuzzyCompleter) Do(line []rune, pos int) ([][]rune, int) {
+	needle := string(line)
+	results := fuzzy.Find(needle, fz.haystack)
+
+	out := make([][]rune, len(results))
+	for i, result := range results {
+		out[i] = []rune(result)
+	}
+
+	return out, 0
 }
 
 func autocompleteNodes(s *state, prompt string) (*Node, error) {
