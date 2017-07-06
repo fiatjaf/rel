@@ -42,9 +42,12 @@ func (n Node) MarshalYAML() (interface{}, error) {
 		if r.From.Id == n.Id {
 			other = r.To.Id
 			out = true
-		} else {
+		} else if r.To.Id == n.Id {
 			other = r.From.Id
 			out = false
+		} else {
+			// this node is not participating in current rel
+			continue
 		}
 
 		if r.Directed {

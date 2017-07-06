@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 
@@ -143,7 +144,7 @@ func main() {
 			},
 		},
 		{
-			Name:  "rels",
+			Name:  "links",
 			Usage: "list all relationships",
 			Action: func(c *cli.Context) error {
 				for _, r := range s.Rels {
@@ -229,12 +230,32 @@ func main() {
 			},
 		},
 		{
+			Name:  "edit",
+			Usage: "open a file for edit by node name.",
+			Action: func(c *cli.Context) error {
+				if n, err := autocompleteNodes(s, "name: "); err != nil {
+					return err
+				} else {
+					cmd := exec.Command("edit", n.path)
+					cmd.Stdin = os.Stdin
+					cmd.Stdout = os.Stdout
+					cmd.Stderr = os.Stderr
+
+					if err := cmd.Start(); err != nil {
+						return err
+					}
+					if err := cmd.Wait(); err != nil {
+						return err
+					}
+					return nil
+				}
+			},
+		},
+		{
 			Name:  "dot",
 			Usage: "generate a dot string of the graph",
 			Action: func(c *cli.Context) error {
-				dot.Execute(os.Stdout, s)
-
-				return nil
+				return dot.Execute(os.Stdout, s)
 			},
 		},
 	}
