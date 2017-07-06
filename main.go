@@ -236,6 +236,22 @@ func main() {
 			},
 		},
 		{
+			Name:  "print",
+			Usage: "print the contents of a node file",
+			Action: func(c *cli.Context) error {
+				if n, err := autocompleteNodes(s, "name: "); err != nil {
+					return err
+				} else {
+					contents, err := ioutil.ReadFile(n.path)
+					if err != nil {
+						return err
+					}
+					_, err = os.Stdout.Write(contents)
+					return err
+				}
+			},
+		},
+		{
 			Name:  "edit",
 			Usage: "open a file for edit by node name.",
 			Action: func(c *cli.Context) error {
