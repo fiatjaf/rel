@@ -2,7 +2,10 @@ package main
 
 import (
 	"io/ioutil"
+	"path"
 
+	"github.com/Songmu/prompter"
+	"github.com/fiatjaf/cuid"
 	"github.com/fiatjaf/hashbow"
 	"gopkg.in/yaml.v2"
 )
@@ -103,6 +106,33 @@ func (n *Node) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 func (n Node) repr() string {
 	return n.Name + " (" + n.Id + ")"
+}
+
+func addNode(s *state, name string) *Node {
+	id := cuid.Slug()
+	for _, n := range s.Nodes {
+		if n.Name == name {
+			dup := prompter.YN(
+				"There's already a node named '"+name+"', create a duplicate?",
+				false,
+			)
+			if dup {
+				break
+			} else {
+				return nil
+			}
+		}
+	}
+
+	n := &Node{
+		path:  path.Join(s.here, id+".yaml"),
+		state: s,
+		Id:    id,
+		Name:  name,
+	}
+	s.Nodes[id] = n
+
+	return n
 }
 
 func (n Node) write() error {

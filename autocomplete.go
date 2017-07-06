@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/Songmu/prompter"
 	"github.com/chzyer/readline"
 )
 
@@ -42,14 +44,21 @@ func autocompleteNodes(s *state, prompt string) (*Node, error) {
 
 		v = strings.Trim(v, " ")
 		parts := strings.Split(v, "(")
-		if len(parts) != 2 {
-			continue
+		if len(parts) == 2 {
+			id := strings.TrimRight(parts[1], ")")
+			if n, found := s.Nodes[id]; found {
+				return n, nil
+			}
+		} else if len(parts) == 1 {
+			// attempt to create a new node
+			if prompter.YN("Create a node named '"+parts[0]+"'?", false) {
+				if n := addNode(s, parts[0]); n != nil {
+					return n, nil
+				}
+			}
 		}
-		id := strings.TrimRight(parts[1], ")")
 
-		if n, found := s.Nodes[id]; found {
-			return n, nil
-		}
+		return nil, fmt.Errorf("couldn't find or create node")
 	}
 }
 

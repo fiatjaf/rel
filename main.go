@@ -7,11 +7,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 
 	"github.com/Songmu/prompter"
-	"github.com/fiatjaf/cuid"
 
 	"gopkg.in/urfave/cli.v1"
 	"gopkg.in/yaml.v2"
@@ -162,29 +160,7 @@ func main() {
 					name = prompter.Prompt("name", "")
 				}
 
-				id := cuid.Slug()
-
-				for _, n := range s.Nodes {
-					if n.Name == name {
-						dup := prompter.YN(
-							"There's already a node named '"+name+"', create a duplicate?",
-							false,
-						)
-						if dup {
-							break
-						} else {
-							return nil
-						}
-					}
-				}
-
-				n := Node{
-					path:  path.Join(s.here, id+".yaml"),
-					state: s,
-
-					Id:   id,
-					Name: name,
-				}
+				n := addNode(s, name)
 				return n.write()
 			},
 		},
