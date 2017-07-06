@@ -21,9 +21,9 @@ type Node struct {
 	path  string
 	state *state
 
-	Id    string
-	Name  string
-	Attrs map[string]interface{}
+	Id    string                 `json:"id"`
+	Name  string                 `json:"name"`
+	Attrs map[string]interface{} `json:"attrs,omitempty"`
 }
 
 func (n Node) MarshalYAML() (interface{}, error) {
@@ -145,10 +145,10 @@ func (n Node) write() error {
 }
 
 type Rel struct {
-	Kind     string
-	Directed bool
-	From     *Node
-	To       *Node
+	Kind     string `json:"kind"`
+	Directed bool   `json:"directed"`
+	From     *Node  `json:"from"`
+	To       *Node  `json:"to"`
 }
 
 func (r Rel) key() string {

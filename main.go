@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -22,6 +23,12 @@ func main() {
 	app.Description = "manage entities and relationships between them in flat files."
 	app.Version = "0.0.1"
 	app.EnableBashCompletion = true
+	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "json",
+			Usage: "get the output in JSON whenever possible",
+		},
+	}
 
 	s := &state{
 		Nodes: make(map[string]*Node),
@@ -134,7 +141,12 @@ func main() {
 		{
 			Name:  "nodes",
 			Usage: "list all nodes",
+			Flags: []cli.Flag{},
 			Action: func(c *cli.Context) error {
+				if c.GlobalBool("json") {
+					return json.NewEncoder(os.Stdout).Encode(s.Nodes)
+				}
+
 				for _, n := range s.Nodes {
 					fmt.Println(n.repr())
 				}
@@ -145,6 +157,10 @@ func main() {
 			Name:  "links",
 			Usage: "list all relationships",
 			Action: func(c *cli.Context) error {
+				if c.GlobalBool("json") {
+					return json.NewEncoder(os.Stdout).Encode(s.Rels)
+				}
+
 				for _, r := range s.Rels {
 					fmt.Println(r.repr() + "\t(" + r.key() + ")")
 				}
