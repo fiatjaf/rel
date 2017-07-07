@@ -196,27 +196,32 @@ func main() {
 					return fmt.Errorf("argument should be <kind>")
 				}
 
-				r := Rel{
-					Directed: !c.Bool("neutral"),
-					Kind:     args[0],
-				}
-
-				if n, err := autocompleteNodes(s, "from:"); err != nil {
+				fromnodes, err := autocompleteNodes(s, "from:")
+				if err != nil {
 					return err
-				} else {
-					r.From = n
 				}
 
-				if n, err := autocompleteNodes(s, "to: "); err != nil {
+				tonodes, err := autocompleteNodes(s, "to: ")
+				if err != nil {
 					return err
-				} else {
-					r.To = n
 				}
 
-				s.Rels[r.key()] = &r
+				for _, fromnode := range fromnodes {
+					for _, tonode := range tonodes {
+						r := Rel{
+							Directed: !c.Bool("neutral"),
+							Kind:     args[0],
+							From:     fromnode,
+							To:       tonode,
+						}
 
-				r.From.write()
-				r.To.write()
+						s.Rels[r.key()] = &r
+						r.From.write()
+						r.To.write()
+
+						fmt.Println("created " + r.repr())
+					}
+				}
 
 				return nil
 			},
@@ -239,15 +244,21 @@ func main() {
 			Name:  "print",
 			Usage: "print the contents of a node file",
 			Action: func(c *cli.Context) error {
-				if n, err := autocompleteNodes(s, "name: "); err != nil {
+				if nodes, err := autocompleteNodes(s, "name: "); err != nil {
 					return err
 				} else {
-					contents, err := ioutil.ReadFile(n.path)
-					if err != nil {
-						return err
+					for _, n := range nodes {
+						fmt.Println(n.path)
+						contents, err := ioutil.ReadFile(n.path)
+						if err != nil {
+							return err
+						}
+						if _, err = os.Stdout.Write(contents); err != nil {
+							log.Print(err)
+						}
+						fmt.Println("")
 					}
-					_, err = os.Stdout.Write(contents)
-					return err
+					return nil
 				}
 			},
 		},
@@ -255,19 +266,21 @@ func main() {
 			Name:  "edit",
 			Usage: "open a file for edit by node name.",
 			Action: func(c *cli.Context) error {
-				if n, err := autocompleteNodes(s, "name: "); err != nil {
+				if nodes, err := autocompleteNodes(s, "name: "); err != nil {
 					return err
 				} else {
-					cmd := exec.Command("edit", n.path)
-					cmd.Stdin = os.Stdin
-					cmd.Stdout = os.Stdout
-					cmd.Stderr = os.Stderr
+					for _, n := range nodes {
+						cmd := exec.Command("edit", n.path)
+						cmd.Stdin = os.Stdin
+						cmd.Stdout = os.Stdout
+						cmd.Stderr = os.Stderr
 
-					if err := cmd.Start(); err != nil {
-						return err
-					}
-					if err := cmd.Wait(); err != nil {
-						return err
+						if err := cmd.Start(); err != nil {
+							return err
+						}
+						if err := cmd.Wait(); err != nil {
+							return err
+						}
 					}
 					return nil
 				}

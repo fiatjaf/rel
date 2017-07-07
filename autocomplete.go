@@ -9,19 +9,32 @@ import (
 )
 
 func nodeAutocompleter(s *state) *readline.PrefixCompleter {
-	pc := readline.PrefixCompleter{}
-
-	for _, n := range s.Nodes {
-		pc.Children = append(
-			pc.Children,
-			readline.PcItem(n.repr()),
-		)
-	}
-
-	return &pc
+	return recursiveNodeCompleter(readline.PcItem(""), s, 0, "")
 }
 
-func autocompleteNodes(s *state, prompt string) (*Node, error) {
+func recursiveNodeCompleter(
+	pc *readline.PrefixCompleter, s *state, iter int, prev string) *readline.PrefixCompleter {
+
+	if iter >= 4 {
+		return pc
+	}
+
+	for _, n := range s.Nodes {
+		if strings.Index(prev, n.Id) != -1 {
+			continue
+		}
+
+		pc.Children =
+			append(
+				pc.Children,
+				recursiveNodeCompleter(
+					readline.PcItem(n.repr()+","), s, iter+1, prev+" "+n.Id),
+			)
+	}
+	return pc
+}
+
+func autocompleteNodes(s *state, prompt string) ([]*Node, error) {
 	completer := nodeAutocompleter(s)
 
 	l, err := readline.NewEx(&readline.Config{
@@ -42,23 +55,36 @@ func autocompleteNodes(s *state, prompt string) (*Node, error) {
 			return nil, err
 		}
 
-		v = strings.Trim(v, " ")
-		parts := strings.Split(v, "(")
-		if len(parts) == 2 {
-			id := strings.TrimRight(parts[1], ")")
-			if n, found := s.Nodes[id]; found {
-				return n, nil
+		items := strings.Split(v, ",")
+		var result []*Node
+
+		for _, item := range items {
+			item = strings.Trim(item, " )")
+			if item == "" {
+				continue
 			}
-		} else if len(parts) == 1 {
-			// attempt to create a new node
-			if prompter.YN("Create a node named '"+parts[0]+"'?", false) {
-				if n := addNode(s, parts[0]); n != nil {
-					return n, nil
+
+			parts := strings.Split(item, "(")
+			if len(parts) == 2 {
+				id := strings.TrimRight(parts[1], "), ")
+				if n, found := s.Nodes[id]; found {
+					result = append(result, n)
+				}
+			} else if len(parts) == 1 {
+				// attempt to create a new node
+				if prompter.YN("Create a node named '"+parts[0]+"'?", false) {
+					if n := addNode(s, parts[0]); n != nil {
+						result = append(result, n)
+					}
 				}
 			}
 		}
 
-		return nil, fmt.Errorf("couldn't find or create node")
+		if len(result) == 0 {
+			return nil, fmt.Errorf("couldn't find or create node")
+		}
+
+		return result, nil
 	}
 }
 
