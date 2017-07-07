@@ -3,8 +3,10 @@ package main
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"path"
+	"time"
 
 	"github.com/Songmu/prompter"
 	"github.com/fiatjaf/cuid"
@@ -25,12 +27,15 @@ type Node struct {
 	Id    string                 `json:"id"`
 	Name  string                 `json:"name"`
 	Attrs map[string]interface{} `json:"attrs,omitempty"`
+
+	Timestamp int64 `json:"timestamp"`
 }
 
 func (n Node) MarshalYAML() (interface{}, error) {
 	raw := map[string]interface{}{
-		"name": n.Name,
-		"id":   n.Id,
+		"name":      n.Name,
+		"id":        n.Id,
+		"timestamp": n.Timestamp,
 	}
 
 	for k, v := range n.Attrs {
@@ -91,13 +96,20 @@ func (n *Node) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if id, ok := raw["id"].(string); ok {
 		n.Id = id
 	}
+	if tm, ok := raw["timestamp"].(int64); ok {
+		n.Timestamp = tm
+	}
 	if n.Name == "" || n.Id == "" {
+		return fmt.Errorf("invalid file, missing name and/or id.")
 	}
 
 	n.Attrs = make(map[string]interface{})
 
 	for k, v := range raw {
-		if k != "name" && k != "id" && k != "outgoing" && k != "incoming" && k != "neutral" {
+		if k != "name" && k != "id" &&
+			k != "outgoing" && k != "incoming" && k != "neutral" &&
+			k != "timestamp" {
+
 			n.Attrs[k] = v
 		}
 	}
@@ -126,10 +138,11 @@ func addNode(s *state, name string) *Node {
 	}
 
 	n := &Node{
-		path:  path.Join(s.here, id+".yaml"),
-		state: s,
-		Id:    id,
-		Name:  name,
+		path:      path.Join(s.here, id+".yaml"),
+		state:     s,
+		Id:        id,
+		Name:      name,
+		Timestamp: time.Now().Unix(),
 	}
 	s.Nodes[id] = n
 
