@@ -189,7 +189,12 @@ func main() {
 				}
 
 				n := addNode(s, name)
-				return n.write()
+				if err := n.write(); err != nil {
+					return err
+				}
+
+				fmt.Println("created " + n.repr())
+				return nil
 			},
 		},
 		{
