@@ -144,7 +144,13 @@ func main() {
 			Flags: []cli.Flag{},
 			Action: func(c *cli.Context) error {
 				if c.GlobalBool("json") {
-					return json.NewEncoder(os.Stdout).Encode(s.Nodes)
+					list := make([]*Node, len(s.Nodes))
+					i := 0
+					for _, o := range s.Nodes {
+						list[i] = o
+						i++
+					}
+					return json.NewEncoder(os.Stdout).Encode(list)
 				}
 
 				for _, n := range s.Nodes {
@@ -158,7 +164,13 @@ func main() {
 			Usage: "list all relationships",
 			Action: func(c *cli.Context) error {
 				if c.GlobalBool("json") {
-					return json.NewEncoder(os.Stdout).Encode(s.Rels)
+					list := make([]*Rel, len(s.Rels))
+					i := 0
+					for _, o := range s.Rels {
+						list[i] = o
+						i++
+					}
+					return json.NewEncoder(os.Stdout).Encode(list)
 				}
 
 				for _, r := range s.Rels {
