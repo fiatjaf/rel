@@ -20,6 +20,36 @@ type state struct {
 	schema schema
 }
 
+type representable interface {
+	repr() string
+}
+
+func nodeMapToList(m map[string]*Node) []representable {
+	list := make([]representable, len(m))
+	i := 0
+	for _, el := range m {
+		list[i] = el
+		i++
+	}
+	return list
+}
+
+func relMapToList(m map[string]*Rel) []representable {
+	list := make([]representable, len(m))
+	i := 0
+	for _, el := range m {
+		list[i] = el
+		i++
+	}
+	return list
+}
+
+type byRepr []representable
+
+func (o byRepr) Len() int           { return len(o) }
+func (o byRepr) Swap(i, j int)      { o[i], o[j] = o[j], o[i] }
+func (o byRepr) Less(i, j int) bool { return o[i].repr() < o[j].repr() }
+
 type Node struct {
 	path  string
 	state *state

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 
 	"github.com/Songmu/prompter"
 
@@ -143,17 +144,14 @@ func main() {
 			Usage: "list all nodes",
 			Flags: []cli.Flag{},
 			Action: func(c *cli.Context) error {
+				list := nodeMapToList(s.Nodes)
+				sort.Sort(byRepr(list))
 				if c.GlobalBool("json") {
-					list := make([]*Node, len(s.Nodes))
-					i := 0
-					for _, o := range s.Nodes {
-						list[i] = o
-						i++
-					}
 					return json.NewEncoder(os.Stdout).Encode(list)
 				}
 
-				for _, n := range s.Nodes {
+				for _, in := range list {
+					n := in.(*Node)
 					fmt.Println(n.repr())
 				}
 				return nil
@@ -163,17 +161,15 @@ func main() {
 			Name:  "links",
 			Usage: "list all relationships",
 			Action: func(c *cli.Context) error {
+				list := relMapToList(s.Rels)
+				sort.Sort(byRepr(list))
+
 				if c.GlobalBool("json") {
-					list := make([]*Rel, len(s.Rels))
-					i := 0
-					for _, o := range s.Rels {
-						list[i] = o
-						i++
-					}
 					return json.NewEncoder(os.Stdout).Encode(list)
 				}
 
-				for _, r := range s.Rels {
+				for _, ir := range list {
+					r := ir.(*Rel)
 					fmt.Println(r.repr() + "\t(" + r.key() + ")")
 				}
 				return nil
