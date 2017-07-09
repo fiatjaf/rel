@@ -283,7 +283,11 @@ func main() {
 					return err
 				} else {
 					for _, n := range nodes {
-						cmd := exec.Command("edit", n.path)
+						editor := os.Getenv("EDITOR")
+						if editor == "" {
+							editor = "edit"
+						}
+						cmd := exec.Command(editor, n.path)
 						cmd.Stdin = os.Stdin
 						cmd.Stdout = os.Stdout
 						cmd.Stderr = os.Stderr
