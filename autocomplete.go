@@ -8,30 +8,65 @@ import (
 	"github.com/chzyer/readline"
 )
 
-func nodeAutocompleter(s *state) *readline.PrefixCompleter {
-	return recursiveNodeCompleter(readline.PcItem(""), s, 0, "")
+func nodeAutocompleter(s *state) readline.AutoCompleter {
+	words := make([]string, len(s.Nodes))
+	i := 0
+	for _, n := range s.Nodes {
+		words[i] = n.repr() + ", "
+		i++
+	}
+
+	return MultiCompleter{words}
 }
 
-func recursiveNodeCompleter(
-	pc *readline.PrefixCompleter, s *state, iter int, prev string) *readline.PrefixCompleter {
+type MultiCompleter struct {
+	Words []string
+}
 
-	if iter >= 4 {
-		return pc
+func (mn MultiCompleter) runeWords() [][]rune {
+	rw := make([][]rune, len(mn.Words))
+	for i, w := range mn.Words {
+		rw[i] = []rune(w)
+	}
+	return rw
+}
+
+func (mn MultiCompleter) Do(line []rune, pos int) ([][]rune, int) {
+	if len(line) == 0 {
+		return mn.runeWords(), 0
 	}
 
-	for _, n := range s.Nodes {
-		if strings.Index(prev, n.Id) != -1 {
+	used := map[string]bool{}
+	var start int
+	for i, r := range line {
+		if r == ',' {
+			used[strings.Trim(string(line[start:i]), " ")] = true
+			start = i + 1
+		}
+		if i == pos {
+			break
+		}
+	}
+
+	current := string(line[start:])
+	nextcomma := strings.Index(current, ",")
+	if nextcomma != -1 {
+		current = current[:nextcomma]
+	}
+	current = strings.Trim(current, " ")
+	nchars := len(current)
+
+	var matches [][]rune
+	for _, word := range mn.Words {
+		if _, isused := used[word]; isused {
 			continue
 		}
-
-		pc.Children =
-			append(
-				pc.Children,
-				recursiveNodeCompleter(
-					readline.PcItem(n.repr()+","), s, iter+1, prev+" "+n.Id),
-			)
+		if strings.HasPrefix(word, current) {
+			matches = append(matches, []rune(word)[nchars:])
+		}
 	}
-	return pc
+
+	return matches, nchars
 }
 
 func autocompleteNodes(s *state, prompt string) ([]*Node, error) {

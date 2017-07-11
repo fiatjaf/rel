@@ -170,7 +170,7 @@ func main() {
 
 				for _, ir := range list {
 					r := ir.(*Rel)
-					fmt.Println(r.repr() + "\t(" + r.key() + ")")
+					fmt.Println(r.repr() + " (" + r.key() + ")")
 				}
 				return nil
 			},
