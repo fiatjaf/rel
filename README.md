@@ -26,6 +26,7 @@ If you want to modify a file's name or add custom metadata, you can just edit th
 * **rel [--json] nodes** lists all nodes sorted by name, `--json` makes it output a JSON array, useful for piping to [jq](https://stedolan.github.io/jq/manual/) and doing advanced filtering.
 * **rel [--json] links** lists all relationships.
 * **rel dot** outputs a [dot](http://www.graphviz.org/content/dot-language) representation of the graph.
+* **rel template --template <file>** renders the given [Go template](https://golang.org/pkg/text/template/) with the data from the graph.
 
 ## use cases
 

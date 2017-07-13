@@ -1,0 +1,10 @@
+digraph main {
+  {{ range .Nodes }}
+  n{{ .Id }} [label="{{ .Name }}"]; {{ end }}
+
+  {{ range .Rels }}
+  n{{ .From.Id }}->n{{ .To.Id }} [
+    label="{{ .Kind }}",
+    dir={{ if .Directed }}forward{{ else }}none{{ end }}
+  ]; {{ end }}
+}

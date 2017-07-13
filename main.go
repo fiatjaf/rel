@@ -3,16 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"text/template"
 
 	"github.com/Songmu/prompter"
-
 	"gopkg.in/urfave/cli.v1"
 	"gopkg.in/yaml.v2"
 )
@@ -22,7 +21,7 @@ func main() {
 
 	app.Name = "rels"
 	app.Description = "manage entities and relationships between them in flat files."
-	app.Version = "0.0.1"
+	app.Version = "0.2.0"
 	app.EnableBashCompletion = true
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
@@ -307,23 +306,27 @@ func main() {
 			Name:  "dot",
 			Usage: "generate a dot string of the graph",
 			Action: func(c *cli.Context) error {
+				dot := template.Must(template.ParseFiles("template.dot"))
 				return dot.Execute(os.Stdout, s)
+			},
+		},
+		{
+			Name:        "template",
+			Usage:       "run a Go template against the data of the graph",
+			Description: "The template is any text file using the syntax specified by https://golang.org/pkg/text/template/ to which will be passed the variable `.Nodes` -- a list of all the nodes, in the graph, and `.Rels`, a list of all links in the graph.",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "template",
+					Usage: "template file to be used.",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				file := c.String("template")
+				tmpl := template.Must(template.ParseFiles(file))
+				return tmpl.Execute(os.Stdout, s)
 			},
 		},
 	}
 
 	app.Run(os.Args)
 }
-
-var dot = template.Must(template.New("dot").Parse(`
-digraph main {
-  {{ range .Nodes }}
-  n{{ .Id }} [label="{{ .Name }}"]; {{ end }}
-
-  {{ range .Rels }}
-  n{{ .From.Id }}->n{{ .To.Id }} [
-    label="{{ .Kind }}",
-    dir={{ if .Directed }}forward{{ else }}none{{ end }}
-  ]; {{ end }}
-}
-`))
