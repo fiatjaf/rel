@@ -306,7 +306,7 @@ func main() {
 			Name:  "dot",
 			Usage: "generate a dot string of the graph",
 			Action: func(c *cli.Context) error {
-				dot := template.Must(template.ParseFiles("template.dot"))
+				dot := template.Must(template.New("~").Parse(dotTemplate))
 				return dot.Execute(os.Stdout, s)
 			},
 		},
@@ -330,3 +330,16 @@ func main() {
 
 	app.Run(os.Args)
 }
+
+const dotTemplate = `
+digraph main {
+  {{ range .Nodes }}
+  n{{ .Id }} [label="{{ .Name }}"]; {{ end }}
+
+  {{ range .Rels }}
+  n{{ .From.Id }}->n{{ .To.Id }} [
+    label="{{ .Kind }}",
+    dir={{ if .Directed }}forward{{ else }}none{{ end }}
+  ]; {{ end }}
+}
+`
