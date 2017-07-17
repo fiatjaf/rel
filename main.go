@@ -13,6 +13,7 @@ import (
 	"text/template"
 
 	"github.com/Songmu/prompter"
+	"github.com/thomasheller/gtf/gtft"
 	"gopkg.in/urfave/cli.v1"
 	"gopkg.in/yaml.v2"
 )
@@ -314,7 +315,7 @@ func main() {
 		{
 			Name:  "template",
 			Usage: "run a Go template against the data of the graph",
-			Description: `For any kind of rendering, like HTML, CSV or even DOT (if you want something that goes beyond the really basic template that is provided by 'rel dot') this is the command you're looking for. The template is any text file using the syntax specified by https://golang.org/pkg/text/template/ to which will be passed the variable '.Nodes' -- a list of all the nodes, in the graph, and '.Rels', a list of all links in the graph. For an example look at the template that is being used to render the DOT output given by 'rel dot'.
+			Description: `For any kind of rendering, like HTML, CSV or even DOT (if you want something that goes beyond the really basic template that is provided by 'rel dot') this is the command you're looking for. The template is any text file using the syntax specified by https://golang.org/pkg/text/template/ and the extra helper functions given by https://github.com/leekchan/gtf, to which will be passed the variable '.Nodes' -- a list of all the nodes, in the graph, and '.Rels', a list of all links in the graph. For an example look at the template that is being used to render the DOT output given by 'rel dot'.
 
    If you want to exclude some nodes from rendering you can either pass a list of the nodes as an argument to --exclude comma-separated or pipe a list of nodes newline-separated to the STDIN of the program:
 
@@ -338,7 +339,10 @@ func main() {
 			},
 			Action: func(c *cli.Context) error {
 				file := c.String("template")
-				tmpl := template.Must(template.ParseFiles(file))
+				tmpl, err := template.New(filepath.Base(file)).Funcs(gtft.GtfFuncMap).ParseFiles(file)
+				if err != nil {
+					return err
+				}
 
 				var excluded []string
 				var toExclude []string
