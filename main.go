@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 	"text/template"
 
 	"github.com/Songmu/prompter"
@@ -311,18 +312,69 @@ func main() {
 			},
 		},
 		{
-			Name:        "template",
-			Usage:       "run a Go template against the data of the graph",
-			Description: "The template is any text file using the syntax specified by https://golang.org/pkg/text/template/ to which will be passed the variable `.Nodes` -- a list of all the nodes, in the graph, and `.Rels`, a list of all links in the graph.",
+			Name:  "template",
+			Usage: "run a Go template against the data of the graph",
+			Description: `For any kind of rendering, like HTML, CSV or even DOT (if you want something that goes beyond the really basic template that is provided by 'rel dot') this is the command you're looking for. The template is any text file using the syntax specified by https://golang.org/pkg/text/template/ to which will be passed the variable '.Nodes' -- a list of all the nodes, in the graph, and '.Rels', a list of all links in the graph. For an example look at the template that is being used to render the DOT output given by 'rel dot'.
+
+   If you want to exclude some nodes from rendering you can either pass a list of the nodes as an argument to --exclude comma-separated or pipe a list of nodes newline-separated to the STDIN of the program:
+
+    cat my-exclusion-list | rel template --template something.dot --exclude 'Thing that was excluded (83h4s2l), Excluded thing (si834sp)'
+
+  The items in both exclusion list must be either the raw node id or some name followed by the node id inside parenthesis. This makes easy to filter by the following method:
+
+    rel nodes > my-exclusion-list
+    vim my-exclusion-list (filter it manually)
+    cat my-exclusion list | rel template --template my-template.dot
+            `,
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "template",
 					Usage: "template file to be used.",
 				},
+				cli.StringFlag{
+					Name:  "exclude",
+					Usage: "list of nodes to exclude.",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				file := c.String("template")
 				tmpl := template.Must(template.ParseFiles(file))
+
+				var excluded []string
+				var toExclude []string
+
+				if toExcludeArgument := c.String("exclude"); toExcludeArgument != "" {
+					toExclude = strings.Split(toExcludeArgument, ",")
+				}
+				if toExcludeBytes, err := ioutil.ReadAll(os.Stdin); err != nil {
+					return err
+				} else {
+					toExcludeStdin := strings.Split(string(toExcludeBytes), "\n")
+					toExclude = append(toExclude, toExcludeStdin...)
+				}
+
+				for _, part := range toExclude {
+					if n, ok := s.Nodes[extractParenthesis(part)]; ok {
+						excluded = append(excluded, n.repr())
+					}
+				}
+
+				if len(excluded) > 0 {
+					for _, nrepr := range excluded {
+						id := extractParenthesis(nrepr)
+						delete(s.Nodes, id)
+					}
+
+					// exclude all relationships for which the two nodes are not present
+					for key, r := range s.Rels {
+						_, fromexists := s.Nodes[r.From.Id]
+						_, toexists := s.Nodes[r.To.Id]
+						if !fromexists || !toexists {
+							delete(s.Rels, key)
+						}
+					}
+				}
+
 				return tmpl.Execute(os.Stdout, s)
 			},
 		},

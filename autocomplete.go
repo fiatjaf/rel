@@ -157,12 +157,7 @@ func autocompleteRels(s *state, prompt string) (*Rel, error) {
 			return nil, err
 		}
 
-		v = strings.Trim(v, " ")
-		parts := strings.Split(v, "(")
-		if len(parts) != 2 {
-			continue
-		}
-		key := strings.TrimRight(parts[1], ")")
+		key := extractParenthesis(v)
 
 		if k, found := s.Rels[key]; found {
 			return k, nil
