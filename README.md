@@ -32,3 +32,7 @@ If you want to modify a file's name or add custom metadata, you can just edit th
 
  * family trees
  * ?
+
+## this repository traffic statistics
+
+[![](https://ght.trackingco.de/fiatjaf/rel)](https://ght.trackingco.de/)
