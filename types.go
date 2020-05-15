@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/Songmu/prompter"
-	"github.com/fiatjaf/cuid"
+	"github.com/lucsky/cuid"
 	"gopkg.in/yaml.v2"
 )
 
